@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D&O Solar — Lead Bot Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sun: #f59e0b;
+    --sun-light: #fef3c7;
+    --green: #16a34a;
+    --green-light: #dcfce7;
+    --blue: #2563eb;
+    --red: #dc2626;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --muted: #64748b;
+    --radius: 10px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  header {
+    background: #0f172a;
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header .logo { font-size: 22px; }
+  header h1 { color: #fff; font-size: 17px; font-weight: 600; line-height: 1.2; }
+  header p  { color: #94a3b8; font-size: 12px; }
+
+  main { max-width: 960px; margin: 0 auto; padding: 28px 20px; }
+
+  /* Auth gate */
+  #auth-gate {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; min-height: 60vh; gap: 14px;
+  }
+  #auth-gate h2 { font-size: 18px; }
+  #auth-gate input {
+    padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: 15px; width: 260px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+
+  /* Trigger form */
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .form-row input {
+    flex: 1 1 200px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+  }
+  .form-row input:focus { outline: 2px solid var(--sun); border-color: transparent; }
+
+  button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:hover { opacity: .85; }
+  .btn-primary   { background: var(--sun);   color: #fff; }
+  .btn-secondary { background: var(--blue);  color: #fff; }
+  .btn-sm        { padding: 6px 14px; font-size: 13px; }
+
+  #trigger-result {
+    margin-top: 12px; font-size: 13px; padding: 10px 14px;
+    border-radius: var(--radius); display: none;
+  }
+  #trigger-result.ok  { background: var(--green-light); color: var(--green); }
+  #trigger-result.err { background: #fee2e2; color: var(--red); }
+
+  /* Leads table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left; padding: 10px 12px;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+    white-space: nowrap;
+  }
+  td { padding: 12px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .badge-complete { background: var(--green-light); color: var(--green); }
+  .badge-partial  { background: var(--sun-light);   color: #92400e; }
+
+  .phone { font-family: monospace; font-size: 12px; color: var(--muted); }
+  .empty { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+  .stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .stat-tile {
+    flex: 1 1 140px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .stat-tile .num   { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat-tile .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .stat-tile.sun  .num { color: var(--sun);   }
+  .stat-tile.grn  .num { color: var(--green); }
+  .stat-tile.blu  .num { color: var(--blue);  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🌞</div>
+  <div>
+    <h1>D&O South Coast Solar</h1>
+    <p>WhatsApp Lead Bot — Admin</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- Auth gate -->
+  <div id="auth-gate">
+    <h2>🔒 Enter admin password</h2>
+    <input type="password" id="pwd-input" placeholder="Admin password" />
+    <button class="btn-primary" onclick="unlock()">Unlock</button>
+    <p id="auth-err" style="color:var(--red);font-size:13px;display:none">Incorrect password</p>
+  </div>
+
+  <!-- Main content (hidden until authed) -->
+  <div id="content" style="display:none">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-tile sun"><div class="num" id="stat-total">—</div><div class="label">Total leads</div></div>
+      <div class="stat-tile grn"><div class="num" id="stat-complete">—</div><div class="label">Fully qualified</div></div>
+      <div class="stat-tile blu"><div class="num" id="stat-today">—</div><div class="label">Today</div></div>
+    </div>
+
+    <!-- Trigger new lead -->
+    <div class="card">
+      <h2>🚀 Trigger flow for a new lead</h2>
+      <div class="form-row">
+        <input type="tel"  id="inp-phone" placeholder="+447700900000 (with country code)" />
+        <input type="text" id="inp-name"  placeholder="First name (optional)" />
+        <button class="btn-primary" onclick="triggerLead()">Send opening message</button>
+      </div>
+      <div id="trigger-result"></div>
+    </div>
+
+    <!-- Leads list -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="margin:0">📋 Captured leads</h2>
+        <button class="btn-secondary btn-sm" onclick="loadLeads()">↻ Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table id="leads-table">
+          <thead>
+            <tr>
+              <th>Phone</th>
+              <th>Address</th>
+              <th>Energy usage</th>
+              <th>Goals</th>
+              <th>Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="leads-body">
+            <tr><td colspan="6" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+let adminPassword = '';
+
+function unlock() {
+  const pwd = document.getElementById('pwd-input').value.trim();
+  if (!pwd) return;
+  adminPassword = pwd;
+  loadLeads();
+}
+
+async function loadLeads() {
+  const res = await fetch('/leads', {
+    headers: { 'x-admin-password': adminPassword }
+  });
+
+  if (res.status === 401) {
+    document.getElementById('auth-err').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('content').style.display   = 'block';
+
+  const leads = await res.json();
+  renderLeads(leads);
+}
+
+function renderLeads(leads) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  const complete = leads.filter(l => l.goals);
+  const todayLeads = leads.filter(l => (l.startedAt || '').slice(0, 10) === today);
+
+  document.getElementById('stat-total').textContent    = leads.length;
+  document.getElementById('stat-complete').textContent = complete.length;
+  document.getElementById('stat-today').textContent    = todayLeads.length;
+
+  const tbody = document.getElementById('leads-body');
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No leads yet — trigger the first one above.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = leads.slice().reverse().map(l => {
+    const isComplete = !!l.goals;
+    const date = l.startedAt ? new Date(l.startedAt).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '—';
+    const phone = (l.phone || '').replace('whatsapp:', '');
+    return `
+      <tr>
+        <td class="phone">${phone}</td>
+        <td>${esc(l.address  || '—')}</td>
+        <td>${esc(l.energyUsage || '—')}</td>
+        <td>${esc(l.goals    || '—')}</td>
+        <td><span class="badge ${isComplete ? 'badge-complete' : 'badge-partial'}">${isComplete ? 'Complete' : 'In progress'}</span></td>
+        <td>${date}</td>
+      </tr>`;
+  }).join('');
+}
+
+async function triggerLead() {
+  const phone = document.getElementById('inp-phone').value.trim();
+  const name  = document.getElementById('inp-name').value.trim();
+  const result = document.getElementById('trigger-result');
+
+  if (!phone) { showResult('Please enter a phone number', false); return; }
+
+  const res  = await fetch('/trigger', {
+    method  : 'POST',
+    headers : { 'Content-Type': 'application/json' },
+    body    : JSON.stringify({ to: phone, name: name || undefined }),
+  });
+  const json = await res.json();
+
+  if (res.ok) {
+    showResult(`✅ Message sent to ${phone}`, true);
+    document.getElementById('inp-phone').value = '';
+    document.getElementById('inp-name').value  = '';
+    setTimeout(loadLeads, 1500);
+  } else {
+    showResult(`❌ Error: ${json.error}`, false);
+  }
+}
+
+function showResult(msg, ok) {
+  const el = document.getElementById('trigger-result');
+  el.textContent   = msg;
+  el.className     = ok ? 'ok' : 'err';
+  el.style.display = 'block';
+  if (ok) setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Allow Enter key in password field
+document.getElementById('pwd-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') unlock();
+});
+</script>
+</body>
+</html>
